@@ -1,0 +1,236 @@
+import { motion } from "framer-motion";
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+} from "recharts";
+import { MoodHistoryEntry, MOOD_INFO, MoodType } from "@/types/smartdine";
+
+interface MoodChartProps {
+  history: MoodHistoryEntry[];
+}
+
+const MOOD_COLORS: Record<string, string> = {
+  happy: "#f59e0b",
+  calm: "#14b8a6",
+  stressed: "#ef6461",
+  tired: "#a78bfa",
+  energetic: "#34d399",
+  pms: "#f472b6",
+  anxious: "#fb923c",
+  sad: "#818cf8",
+};
+
+const MoodChart = ({ history }: MoodChartProps) => {
+  // Process data for pie chart (mood distribution)
+  const moodCounts = history.reduce((acc, entry) => {
+    entry.moods.forEach((mood) => {
+      acc[mood] = (acc[mood] || 0) + 1;
+    });
+    return acc;
+  }, {} as Record<string, number>);
+
+  const pieData = Object.entries(moodCounts).map(([mood, count]) => ({
+    name: mood,
+    value: count,
+    emoji: MOOD_INFO[mood as MoodType]?.emoji || "😊",
+  }));
+
+  // Process data for area chart (mood over time)
+  const timelineData = history.slice(-14).map((entry) => ({
+    date: new Date(entry.timestamp).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+    }),
+    mood: entry.moods[0] || "happy",
+    moodScore:
+      entry.moods[0] === "happy"
+        ? 5
+        : entry.moods[0] === "energetic"
+        ? 4
+        : entry.moods[0] === "calm"
+        ? 3
+        : entry.moods[0] === "tired"
+        ? 2
+        : 1,
+  }));
+
+  if (history.length === 0) {
+    return (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="text-center py-12 space-y-4"
+      >
+        <div className="text-6xl">📊</div>
+        <h3 className="text-xl font-display font-semibold text-foreground">
+          No Mood Data Yet
+        </h3>
+        <p className="text-muted-foreground max-w-sm mx-auto">
+          Start getting recommendations to build your mood history and see
+          insights here.
+        </p>
+      </motion.div>
+    );
+  }
+
+  return (
+    <div className="space-y-8">
+      <div className="text-center space-y-2">
+        <h2 className="text-2xl font-display font-semibold text-foreground">
+          Your Mood Journey
+        </h2>
+        <p className="text-muted-foreground">
+          Track how your mood and food choices evolve over time
+        </p>
+      </div>
+
+      <div className="grid md:grid-cols-2 gap-6">
+        {/* Mood Distribution Pie Chart */}
+        <motion.div
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          className="glass-card rounded-2xl p-6"
+        >
+          <h3 className="font-semibold text-foreground mb-4">Mood Distribution</h3>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={pieData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={60}
+                  outerRadius={80}
+                  paddingAngle={5}
+                  dataKey="value"
+                  label={({ name, emoji }) => `${emoji} ${name}`}
+                  labelLine={false}
+                >
+                  {pieData.map((entry, index) => (
+                    <Cell
+                      key={`cell-${index}`}
+                      fill={MOOD_COLORS[entry.name] || "#94a3b8"}
+                    />
+                  ))}
+                </Pie>
+                <Tooltip
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const data = payload[0].payload;
+                      return (
+                        <div className="bg-card border border-border rounded-lg px-3 py-2 shadow-medium">
+                          <p className="text-sm font-medium">
+                            {data.emoji} {data.name}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {data.value} times
+                          </p>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        </motion.div>
+
+        {/* Mood Timeline Area Chart */}
+        <motion.div
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          className="glass-card rounded-2xl p-6"
+        >
+          <h3 className="font-semibold text-foreground mb-4">Mood Timeline</h3>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={timelineData}>
+                <defs>
+                  <linearGradient id="moodGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#ef6461" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#ef6461" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis
+                  dataKey="date"
+                  tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }}
+                  tickLine={false}
+                />
+                <YAxis
+                  domain={[0, 5]}
+                  tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }}
+                  tickLine={false}
+                  tickFormatter={(value) => {
+                    const labels = ["😢", "😰", "😌", "⚡", "😊"];
+                    return labels[value - 1] || "";
+                  }}
+                />
+                <Tooltip
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const data = payload[0].payload;
+                      return (
+                        <div className="bg-card border border-border rounded-lg px-3 py-2 shadow-medium">
+                          <p className="text-sm font-medium">{data.date}</p>
+                          <p className="text-xs text-muted-foreground capitalize">
+                            Mood: {data.mood}
+                          </p>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="moodScore"
+                  stroke="#ef6461"
+                  strokeWidth={2}
+                  fill="url(#moodGradient)"
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </motion.div>
+      </div>
+
+      {/* Stats summary */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="grid grid-cols-2 md:grid-cols-4 gap-4"
+      >
+        <div className="glass-card rounded-xl p-4 text-center">
+          <p className="text-3xl font-bold text-primary">{history.length}</p>
+          <p className="text-sm text-muted-foreground">Total Sessions</p>
+        </div>
+        <div className="glass-card rounded-xl p-4 text-center">
+          <p className="text-3xl font-bold text-accent">{pieData.length}</p>
+          <p className="text-sm text-muted-foreground">Mood Types</p>
+        </div>
+        <div className="glass-card rounded-xl p-4 text-center">
+          <p className="text-3xl font-bold text-honey">
+            {history.reduce((acc, e) => acc + e.recommendations.length, 0)}
+          </p>
+          <p className="text-sm text-muted-foreground">Dishes Recommended</p>
+        </div>
+        <div className="glass-card rounded-xl p-4 text-center">
+          <p className="text-3xl">{pieData[0]?.emoji || "😊"}</p>
+          <p className="text-sm text-muted-foreground">Most Common Mood</p>
+        </div>
+      </motion.div>
+    </div>
+  );
+};
+
+export default MoodChart;
