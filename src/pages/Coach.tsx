@@ -4,11 +4,12 @@ import { Send, Mic, Sparkles, ChefHat } from "lucide-react";
 import VoiceRecorder from "@/components/VoiceRecorder";
 import RestaurantCardEnhanced from "@/components/RestaurantCardEnhanced";
 import FloatingFoodIcons from "@/components/FloatingFoodIcons";
+import AnimatedMoodEmoji from "@/components/AnimatedMoodEmoji";
 import { MoodType } from "@/types/smartdine";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "@/contexts/LocationContext";
 import { detectMoodFromText } from "@/constants/eiCopy";
-import { getUnifiedRestaurants, PipelineRestaurant } from "@/services/restaurantPipeline";
+import { getSharedRecommendations, EnrichedRestaurant } from "@/services/sharedRecommendationEngine";
 import { parseFoodIntent, generateChefMoodResponse } from "@/services/foodIntentService";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,7 +19,8 @@ interface ChatMessage {
   type: 'user' | 'chef';
   content: string;
   emotion?: MoodType;
-  restaurants?: PipelineRestaurant[];
+  keywords?: string[];
+  restaurants?: EnrichedRestaurant[];
   timestamp: Date;
 }
 
@@ -32,9 +34,6 @@ const MOOD_EMOJIS: Record<MoodType, string> = {
   anxious: '😟',
   sad: '😢',
 };
-
-// Chef animated GIF URL
-const CHEF_GIF_URL = "https://media.giphy.com/media/LmNwrBhejkK9EFP504/giphy.gif";
 
 const Coach = () => {
   const { toast } = useToast();
@@ -98,11 +97,11 @@ const Coach = () => {
       // Detect mood
       const detectedMood = detectMoodFromText(text);
       
-      // Generate chef response (grounded, no hallucinated names)
+      // Generate chef response
       const chefResponse = generateChefMoodResponse(intent, detectedMood);
 
-      // Use the unified pipeline with intent-based filtering
-      const restaurants = await getUnifiedRestaurants({
+      // Use the SHARED recommendation engine with strict cheesy filtering
+      const restaurants = await getSharedRecommendations({
         lat: location.lat,
         lon: location.lon,
         city: location.city,
@@ -110,9 +109,10 @@ const Coach = () => {
         mood: detectedMood,
         keywords: intent.keywords,
         maxPriceLevel: intent.maxPriceLevel,
+        dishIntent: text,
       });
 
-      // Simulate typing delay for realism
+      // Simulate typing delay
       await new Promise(resolve => setTimeout(resolve, 1200));
 
       // Add chef response with restaurants
@@ -121,6 +121,7 @@ const Coach = () => {
         type: 'chef',
         content: chefResponse,
         emotion: detectedMood,
+        keywords: intent.keywords,
         restaurants: restaurants.slice(0, 6),
         timestamp: new Date(),
       };
@@ -163,12 +164,13 @@ const Coach = () => {
     
     setIsTyping(true);
     try {
-      const restaurants = await getUnifiedRestaurants({
+      const restaurants = await getSharedRecommendations({
         lat: location.lat,
         lon: location.lon,
         city: location.city,
         cuisines: [],
         mood: emotion,
+        limit: 12,
       });
 
       const moreMessage: ChatMessage = {
@@ -245,19 +247,10 @@ const Coach = () => {
                     Tell me how you're feeling or what you're craving, and I'll find the perfect restaurants for you! 🍕🍜🍔
                   </p>
                   
-                  {/* Persistent GIF */}
-                  <motion.div 
-                    className="mt-4 rounded-xl overflow-hidden"
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: 0.3 }}
-                  >
-                    <img 
-                      src={CHEF_GIF_URL} 
-                      alt="Chef cooking animation" 
-                      className="w-full max-w-[200px] h-auto rounded-xl"
-                    />
-                  </motion.div>
+                  {/* Animated Mood Emoji as intro visual */}
+                  <div className="mt-4 flex justify-center">
+                    <AnimatedMoodEmoji mood="happy" size="md" />
+                  </div>
                 </div>
               </div>
 
@@ -334,20 +327,15 @@ const Coach = () => {
                       {message.content}
                     </p>
                     
-                    {/* Persistent GIF for chef responses */}
+                    {/* Animated Mood Emoji instead of static GIF */}
                     {message.type === 'chef' && message.emotion && (
-                      <motion.div 
-                        className="mt-4 rounded-xl overflow-hidden"
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ delay: 0.2 }}
-                      >
-                        <img 
-                          src={CHEF_GIF_URL} 
-                          alt="Chef cooking" 
-                          className="w-full max-w-[150px] h-auto rounded-xl"
+                      <div className="mt-4 flex justify-center">
+                        <AnimatedMoodEmoji 
+                          mood={message.emotion} 
+                          keywords={message.keywords}
+                          size="md"
                         />
-                      </motion.div>
+                      </div>
                     )}
                   </div>
 
