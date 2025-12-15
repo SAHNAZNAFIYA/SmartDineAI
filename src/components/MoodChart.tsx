@@ -204,31 +204,50 @@ const MoodChart = ({ history }: MoodChartProps) => {
         </motion.div>
       </div>
 
-      {/* Stats summary */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="grid grid-cols-2 md:grid-cols-4 gap-4"
-      >
-        <div className="glass-card rounded-xl p-4 text-center">
-          <p className="text-3xl font-bold text-primary">{history.length}</p>
-          <p className="text-sm text-muted-foreground">Total Sessions</p>
-        </div>
-        <div className="glass-card rounded-xl p-4 text-center">
-          <p className="text-3xl font-bold text-accent">{pieData.length}</p>
-          <p className="text-sm text-muted-foreground">Mood Types</p>
-        </div>
-        <div className="glass-card rounded-xl p-4 text-center">
-          <p className="text-3xl font-bold text-honey">
-            {history.reduce((acc, e) => acc + e.recommendations.length, 0)}
-          </p>
-          <p className="text-sm text-muted-foreground">Dishes Recommended</p>
-        </div>
-        <div className="glass-card rounded-xl p-4 text-center">
-          <p className="text-3xl">{pieData[0]?.emoji || "😊"}</p>
-          <p className="text-sm text-muted-foreground">Most Common Mood</p>
-        </div>
-      </motion.div>
+      {/* Fun Animated Stats */}
+<motion.div
+  initial={{ opacity: 0, y: 20 }}
+  animate={{ opacity: 1, y: 0 }}
+  className="grid md:grid-cols-4 gap-6 mb-12"
+>
+  {[
+    {
+      title: "Food Dates Logged 🍽️",
+      value: history.length,
+      caption: "You & food? Going strong 😌",
+      gradient: "from-pink-400 to-rose-500",
+    },
+    {
+      title: "Mood Personalities 😌",
+      value: new Set(history.flatMap(h => h.moods)).size,
+      caption: "Yes, you're emotionally rich",
+      gradient: "from-teal-400 to-emerald-500",
+    },
+    {
+      title: "Dishes Discovered 🔥",
+      value: history.reduce((a, e) => a + e.recommendations.length, 0),
+      caption: "Taste buds well travelled",
+      gradient: "from-amber-400 to-orange-500",
+    },
+    {
+      title: "Current Vibe 😏",
+      value: "😰",
+      caption: "Stress, but make it stylish",
+      gradient: "from-purple-400 to-indigo-500",
+    },
+  ].map((stat, i) => (
+    <motion.div
+      key={i}
+      whileHover={{ scale: 1.06, rotateX: 8, rotateY: -8 }}
+      className={`rounded-2xl p-6 text-white bg-gradient-to-br ${stat.gradient} shadow-xl`}
+    >
+      <div className="text-4xl font-bold">{stat.value}</div>
+      <p className="font-semibold mt-1">{stat.title}</p>
+      <p className="text-sm opacity-90 mt-1">{stat.caption}</p>
+    </motion.div>
+  ))}
+</motion.div>
+
     </div>
   );
 };

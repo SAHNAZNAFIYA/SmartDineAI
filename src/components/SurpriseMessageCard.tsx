@@ -42,16 +42,24 @@ export const SurpriseMessageCard = ({
     >
       {/* Gradient background with animation */}
       <motion.div
-        className="absolute inset-0 bg-gradient-to-br from-primary via-accent to-honey opacity-90"
-        animate={{
-          backgroundPosition: ['0% 0%', '100% 100%', '0% 0%'],
-        }}
-        transition={{
-          duration: 10,
-          repeat: Infinity,
-          ease: "linear",
-        }}
-      />
+  className="
+    absolute inset-0
+    bg-gradient-to-br
+    from-orange-500
+    via-orange-400
+    to-rose-400
+    opacity-95
+  "
+  animate={{
+    backgroundPosition: ['0% 0%', '100% 100%', '0% 0%'],
+  }}
+  transition={{
+    duration: 12,
+    repeat: Infinity,
+    ease: "linear",
+  }}
+/>
+
       
       {/* Shimmer effect */}
       <motion.div

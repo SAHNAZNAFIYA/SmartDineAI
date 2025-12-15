@@ -982,12 +982,14 @@ const RestaurantCardEnhanced = ({ restaurant, index }: RestaurantCardEnhancedPro
       transition={{ delay: index * 0.06, duration: 0.45, ease: "easeOut" }}
       whileHover={{ y: -6 }}
       className="
-        group relative rounded-3xl
-        bg-gradient-to-b from-white via-white to-orange-50/40
-        border border-zinc-200
-        shadow-sm hover:shadow-xl
-        transition-all duration-300
-        overflow-hidden
+         group relative rounded-3xl
+bg-gradient-to-b from-white via-white to-orange-50/40
+border border-zinc-200
+shadow-sm hover:shadow-xl
+transition-all duration-300
+overflow-hidden
+
+
       "
     >
       {/* Subtle Glow */}
@@ -1047,28 +1049,49 @@ const RestaurantCardEnhanced = ({ restaurant, index }: RestaurantCardEnhancedPro
       {/* ================= CONTENT ================= */}
       <div className="px-6 py-4 space-y-5">
         {/* Dish Highlight */}
-        <div className="rounded-xl bg-white border border-zinc-200 p-4">
-          <div className="flex items-center gap-2 mb-1">
-            <Utensils className="w-4 h-4 text-orange-500" />
-            <span className="font-semibold text-zinc-900">
-              {dish.name}
-            </span>
-          </div>
+       {/* Dish Highlight */}
+<div className="rounded-xl bg-white border border-zinc-200 p-4">
+  {/* High-rated hint */}
+  <div className="mb-1">
+    <span
+      className="
+        inline-flex items-center gap-1
+        text-[11px] font-semibold
+        text-orange-600
+        bg-orange-100
+        px-2 py-0.5
+        rounded-full
+      "
+    >
+      ⭐ Highly loved here
+    </span>
+  </div>
 
-          <p className="text-sm text-zinc-600 leading-relaxed">
-            {dish.description}
-          </p>
+  {/* Dish name */}
+  <div className="flex items-center gap-2 mb-1 mt-1">
+    <Utensils className="w-4 h-4 text-orange-500" />
+    <span className="font-semibold text-zinc-900">
+      {dish.name}
+    </span>
+  </div>
 
-          <span
-            className="
-              inline-flex mt-3 px-3 py-1 rounded-full
-              text-xs font-semibold
-              bg-orange-50 text-orange-700
-            "
-          >
-            🔥 {dish.calories} cal
-          </span>
-        </div>
+  {/* Description */}
+  <p className="text-sm text-zinc-600 leading-relaxed">
+    {dish.description}
+  </p>
+
+  {/* Calories */}
+  <span
+    className="
+      inline-flex mt-3 px-3 py-1 rounded-full
+      text-xs font-semibold
+      bg-orange-50 text-orange-700
+    "
+  >
+    🔥 {dish.calories} cal
+  </span>
+</div>
+
 
         {/* Contextual Recommendation */}
 <div
@@ -1086,9 +1109,14 @@ const RestaurantCardEnhanced = ({ restaurant, index }: RestaurantCardEnhancedPro
     </span>
   </div>
 
-  <p className="text-sm text-zinc-700 leading-relaxed">
-    {recommendation}
-  </p>
+ <p className="
+  text-sm text-zinc-700 leading-relaxed
+  line-clamp-3
+  relative
+">
+  “{recommendation}”
+</p>
+
 </div>
 
         {/* Nutrition */}
@@ -1126,9 +1154,13 @@ const RestaurantCardEnhanced = ({ restaurant, index }: RestaurantCardEnhancedPro
               Mood Boost
             </span>
           </div>
-          <p className="text-xs text-zinc-600 leading-relaxed">
-            {dish.moodBenefit}
-          </p>
+          <p className="
+  text-xs text-zinc-600 leading-relaxed
+  line-clamp-2 italic
+">
+  💫 {dish.moodBenefit}
+</p>
+
         </div>
       </div>
 
