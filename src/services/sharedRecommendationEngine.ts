@@ -2,6 +2,9 @@
  * SHARED RECOMMENDATION ENGINE
  * Single source of truth for ALL restaurant recommendations
  * Used by: General Recommendations, AI Coach, Surprise Me
+ * 
+ * CRITICAL: Cheesy intent MUST only show Italian/French/Mexican/Cafe/Continental/American
+ * CRITICAL: Indian restaurants MUST NEVER appear for cheesy intent
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -11,7 +14,13 @@ import {
   searchFallbackRestaurants, 
   FallbackRestaurant 
 } from "@/data/localFallbackRestaurants";
+import { 
+  getCheesyRestaurants, 
+  getIndianRestaurants,
+  CuisineRestaurant 
+} from "@/data/predefinedCuisineRestaurants";
 import { getCuisineAppropriateDishes } from "./dishIntelligence";
+import { CHEESY_ALLOWED_CUISINES, CHEESY_FORBIDDEN_CUISINES, detectCheesyIntent } from "./foodIntentService";
 
 // ============================================
 // TYPES
@@ -29,6 +38,7 @@ export interface RecommendationParams {
   dietaryRestrictions?: string[];
   dishIntent?: string;
   limit?: number;
+  forceIndianOnly?: boolean; // For Surprise Me
 }
 
 export interface EnrichedRestaurant {
@@ -43,7 +53,7 @@ export interface EnrichedRestaurant {
   lat: number;
   lon: number;
   distance?: number;
-  source: 'fallback' | 'api' | 'kaggle';
+  source: 'fallback' | 'api' | 'kaggle' | 'predefined';
   mapsUrl: string;
   dishes: { name: string; description: string }[];
   moodBoost: string;
@@ -57,31 +67,11 @@ export interface EnrichedRestaurant {
 // STRICT CHEESY INTENT RULES (HIGHEST PRIORITY)
 // ============================================
 
-// FORBIDDEN cuisines for cheesy intent
-const CHEESY_FORBIDDEN_CUISINES = [
-  'south indian', 'north indian', 'chettinad', 'andhra', 
-  'punjabi', 'indian', 'arabian', 'bbq', 'chinese', 'thai',
-  'korean', 'japanese', 'vietnamese'
-];
-
-// ALLOWED cuisines for cheesy intent
-const CHEESY_ALLOWED_CUISINES = [
-  'italian', 'continental', 'french', 'mexican', 'cafe',
-  'pizza', 'american'
-];
-
-// Cheesy dishes
-const CHEESY_DISHES = [
-  'pizza', 'pasta', 'lasagna', 'mac and cheese', 'quesadilla',
-  'nachos', 'grilled cheese', 'cheese sandwich', 'risotto',
-  'fondue', 'cheese burst', 'panini', 'croissant'
-];
-
 /**
- * Check if intent is cheesy-related
+ * Check if intent is cheesy-related - STRICT DETECTION
  */
 function isCheesyIntent(keywords: string[], dishIntent?: string): boolean {
-  const cheesyKeywords = ['cheesy', 'cheese', 'pizza', 'pasta', 'lasagna', 'nachos', 'quesadilla'];
+  const cheesyKeywords = ['cheesy', 'cheese', 'pizza', 'pasta', 'lasagna', 'nachos', 'quesadilla', 'fondue'];
   const lowerKeywords = keywords.map(k => k.toLowerCase());
   const lowerIntent = dishIntent?.toLowerCase() || '';
   
@@ -91,24 +81,38 @@ function isCheesyIntent(keywords: string[], dishIntent?: string): boolean {
 }
 
 /**
- * Check if restaurant is valid for cheesy intent
+ * Check if restaurant is valid for cheesy intent - STRICT FILTER
+ * Returns TRUE only if restaurant has ALLOWED cuisines and NO forbidden cuisines
  */
-function isValidForCheesy(restaurant: FallbackRestaurant): boolean {
-  const cuisineLower = restaurant.cuisine.map(c => c.toLowerCase());
+function isValidForCheesy(cuisines: string[]): boolean {
+  const cuisineLower = cuisines.map(c => c.toLowerCase());
   
-  // Check if any cuisine is forbidden
+  // Check if any cuisine is FORBIDDEN - immediate rejection
   const hasForbidden = cuisineLower.some(c => 
-    CHEESY_FORBIDDEN_CUISINES.some(fc => c.includes(fc) || fc.includes(c))
+    CHEESY_FORBIDDEN_CUISINES.some(fc => 
+      c.includes(fc.toLowerCase()) || fc.toLowerCase().includes(c)
+    )
   );
   
-  if (hasForbidden) return false;
+  if (hasForbidden) {
+    return false;
+  }
   
-  // Check if at least one cuisine is allowed
+  // Check if at least one cuisine is ALLOWED
   const hasAllowed = cuisineLower.some(c =>
-    CHEESY_ALLOWED_CUISINES.some(ac => c.includes(ac) || ac.includes(c))
+    CHEESY_ALLOWED_CUISINES.some(ac => 
+      c.includes(ac.toLowerCase()) || ac.toLowerCase().includes(c)
+    )
   );
   
   return hasAllowed;
+}
+
+/**
+ * Check if restaurant is valid for cheesy intent (FallbackRestaurant version)
+ */
+function isValidForCheesyFallback(restaurant: FallbackRestaurant): boolean {
+  return isValidForCheesy(restaurant.cuisine);
 }
 
 // ============================================
@@ -227,8 +231,40 @@ function getBudgetLevel(budget: "Low" | "Medium" | "High"): number {
 // ============================================
 
 /**
+ * Convert CuisineRestaurant to EnrichedRestaurant
+ */
+function convertCuisineRestaurant(
+  r: CuisineRestaurant, 
+  params: RecommendationParams,
+  moodContent: ReturnType<typeof getMoodContent>,
+  index: number
+): EnrichedRestaurant {
+  const dishes = getCuisineAppropriateDishes(r.cuisines, params.keywords || [], r.name);
+  const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(r.name + ' ' + r.city)}`;
+  
+  return {
+    id: r.id,
+    name: r.name,
+    city: r.city,
+    cuisines: r.cuisines,
+    rating: r.rating,
+    avgCost: r.priceLevel === '₹' ? 400 : r.priceLevel === '₹₹' ? 800 : 1500,
+    priceLevel: r.priceLevel,
+    address: `${r.city} Center`,
+    lat: params.lat + (index * 0.002),
+    lon: params.lon + (index * 0.002),
+    source: 'predefined' as const,
+    mapsUrl,
+    dishes,
+    ...moodContent,
+    whyThisPlace: r.description,
+    playfulReason: PLAYFUL_REASONS[index % PLAYFUL_REASONS.length],
+  };
+}
+
+/**
  * Get recommendations using the shared engine
- * FILTER ORDER: Location -> Cuisine -> Budget -> Diet -> Dish Intent -> Mood
+ * FILTER ORDER: Intent Detection -> Cuisine Override -> Location -> Budget -> Diet
  */
 export async function getSharedRecommendations(params: RecommendationParams): Promise<EnrichedRestaurant[]> {
   const {
@@ -243,33 +279,133 @@ export async function getSharedRecommendations(params: RecommendationParams): Pr
     dietaryRestrictions = [],
     dishIntent,
     limit = 10,
+    forceIndianOnly = false,
   } = params;
 
-  console.log('🍽️ Shared Engine: Starting recommendation with params:', { city, cuisines, keywords, dishIntent, budget, maxPriceLevel });
+  console.log('🍽️ Shared Engine: Starting recommendation with params:', { city, cuisines, keywords, dishIntent, budget, maxPriceLevel, forceIndianOnly });
 
-  // Determine if this is a cheesy intent
+  const moodContent = getMoodContent(mood);
+  
+  // ===== SPECIAL CASE 1: Surprise Me (Indian Only) =====
+  if (forceIndianOnly) {
+    console.log('🇮🇳 Surprise Me mode: Returning Indian restaurants ONLY');
+    const indianRestaurants = getIndianRestaurants(maxPriceLevel, city);
+    
+    // Ensure minimum 10 restaurants
+    const minCount = Math.max(10, limit);
+    let results = indianRestaurants.slice(0, minCount);
+    
+    // If not enough, add from fallback
+    if (results.length < minCount) {
+      const fallbackIndian = searchFallbackRestaurants({
+        location: city,
+        cuisines: ['Indian', 'South Indian', 'North Indian', 'Chettinad'],
+        limit: minCount - results.length,
+      });
+      
+      const existingNames = new Set(results.map(r => r.name.toLowerCase()));
+      fallbackIndian.forEach((fr, idx) => {
+        if (!existingNames.has(fr.name.toLowerCase()) && results.length < minCount) {
+          results.push({
+            id: `fallback_indian_${fr.id}`,
+            name: fr.name,
+            city: fr.location,
+            cuisines: fr.cuisine,
+            rating: fr.rating,
+            priceLevel: fr.budget === 'Low' ? '₹' : fr.budget === 'Medium' ? '₹₹' : '₹₹₹',
+            description: fr.description,
+            moodTags: [],
+            bestFor: [],
+          });
+        }
+      });
+    }
+    
+    return results.map((r, index) => convertCuisineRestaurant(r, params, moodContent, index));
+  }
+  
+  // ===== SPECIAL CASE 2: Cheesy Intent (STRICT OVERRIDE) =====
   const cheesy = isCheesyIntent(keywords, dishIntent);
+  
+  if (cheesy) {
+    console.log('🧀 CHEESY INTENT DETECTED - Using strict cheesy filtering');
+    console.log('🧀 Allowed cuisines:', CHEESY_ALLOWED_CUISINES);
+    console.log('🧀 Forbidden cuisines:', CHEESY_FORBIDDEN_CUISINES);
+    
+    // Get from predefined cheesy restaurants FIRST
+    const cheesyRestaurants = getCheesyRestaurants(maxPriceLevel, city);
+    console.log(`🧀 Found ${cheesyRestaurants.length} predefined cheesy restaurants`);
+    
+    let results = cheesyRestaurants.map((r, index) => 
+      convertCuisineRestaurant(r, params, moodContent, index)
+    );
+    
+    // If we need more, get from fallback with strict filtering
+    if (results.length < limit) {
+      const fallbackResults = searchFallbackRestaurants({
+        location: city,
+        cuisines: CHEESY_ALLOWED_CUISINES,
+        budget: budget,
+        limit: 30,
+      });
+      
+      // STRICT FILTER: Only add if passes cheesy validation
+      const existingNames = new Set(results.map(r => r.name.toLowerCase()));
+      const additionalResults = fallbackResults
+        .filter(r => isValidForCheesyFallback(r))
+        .filter(r => !existingNames.has(r.name.toLowerCase()))
+        .slice(0, limit - results.length);
+      
+      console.log(`🧀 Adding ${additionalResults.length} additional cheesy restaurants from fallback`);
+      
+      additionalResults.forEach((r, idx) => {
+        const dishes = getCuisineAppropriateDishes(r.cuisine, keywords, r.name);
+        const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(r.name + ' ' + city)}`;
+        
+        results.push({
+          id: `fallback_${r.id}`,
+          name: r.name,
+          city: r.location,
+          cuisines: r.cuisine,
+          rating: r.rating,
+          avgCost: r.budget === 'Low' ? 400 : r.budget === 'Medium' ? 800 : 1500,
+          priceLevel: r.budget === 'Low' ? '₹' : r.budget === 'Medium' ? '₹₹' : '₹₹₹',
+          address: `${r.location} Center`,
+          lat: lat + ((results.length + idx) * 0.002),
+          lon: lon + ((results.length + idx) * 0.002),
+          source: 'fallback' as const,
+          mapsUrl,
+          dishes,
+          ...moodContent,
+          whyThisPlace: `Known for amazing cheese-loaded dishes 🧀 ${r.description}`,
+          playfulReason: PLAYFUL_REASONS[(results.length + idx) % PLAYFUL_REASONS.length],
+        });
+      });
+    }
+    
+    // FINAL VALIDATION: Double-check NO Indian restaurants slipped through
+    results = results.filter(r => isValidForCheesy(r.cuisines));
+    
+    console.log(`🧀 Final cheesy results: ${results.length} restaurants`);
+    return results.slice(0, limit);
+  }
+  
+  // ===== NORMAL FLOW: Regular cuisine-based recommendations =====
+  console.log('📍 Normal flow: Location + cuisine based filtering');
   
   // STEP 1: Get from local fallback FIRST (PRIMARY SOURCE)
   let fallbackResults = searchFallbackRestaurants({
     location: city,
-    cuisines: cheesy ? [] : cuisines, // Ignore selected cuisines if cheesy
+    cuisines: cuisines,
     budget: budget,
     diet: dietaryRestrictions,
-    limit: 50, // Get more for filtering
+    limit: 50,
   });
 
   console.log(`📍 Found ${fallbackResults.length} restaurants in ${city}`);
 
-  // STEP 2: Apply STRICT cheesy filter if applicable
-  if (cheesy) {
-    console.log('🧀 Cheesy intent detected - applying strict filtering');
-    fallbackResults = fallbackResults.filter(r => isValidForCheesy(r));
-    console.log(`🧀 After cheesy filter: ${fallbackResults.length} restaurants`);
-  }
-
-  // STEP 3: Apply cuisine filter (if not cheesy)
-  if (!cheesy && cuisines.length > 0) {
+  // STEP 2: Apply cuisine filter if specified
+  if (cuisines.length > 0) {
     const cuisineLower = cuisines.map(c => c.toLowerCase());
     const cuisineFiltered = fallbackResults.filter(r =>
       r.cuisine.some(c =>
@@ -283,7 +419,7 @@ export async function getSharedRecommendations(params: RecommendationParams): Pr
     }
   }
 
-  // STEP 4: Apply budget filter
+  // STEP 3: Apply budget filter
   if (maxPriceLevel) {
     const budgetFiltered = fallbackResults.filter(r => 
       getBudgetLevel(r.budget) <= maxPriceLevel
@@ -293,7 +429,7 @@ export async function getSharedRecommendations(params: RecommendationParams): Pr
     }
   }
 
-  // STEP 5: Apply diet filter
+  // STEP 4: Apply diet filter
   if (dietaryRestrictions.length > 0 && !dietaryRestrictions.includes('none')) {
     const isVeg = dietaryRestrictions.includes('vegetarian') || dietaryRestrictions.includes('vegan');
     if (isVeg) {
@@ -301,15 +437,13 @@ export async function getSharedRecommendations(params: RecommendationParams): Pr
     }
   }
 
-  // STEP 6: Sort by rating
+  // STEP 5: Sort by rating
   fallbackResults.sort((a, b) => b.rating - a.rating);
 
-  // STEP 7: Limit results
+  // STEP 6: Limit results
   fallbackResults = fallbackResults.slice(0, limit);
 
-  // STEP 8: Enrich results
-  const moodContent = getMoodContent(mood);
-  
+  // STEP 7: Enrich results
   const enrichedResults: EnrichedRestaurant[] = fallbackResults.map((r, index) => {
     const dishes = getCuisineAppropriateDishes(r.cuisine, keywords, r.name);
     const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(r.name + ' ' + city)}`;
@@ -336,17 +470,15 @@ export async function getSharedRecommendations(params: RecommendationParams): Pr
 
   console.log(`✅ Shared Engine: Returning ${enrichedResults.length} restaurants`);
   
-  // STEP 9: Try to enrich with API data (optional, non-blocking)
+  // STEP 8: Try to enrich with API data (optional, non-blocking)
   try {
     const apiResults = await fetchFromAPIs(lat, lon, cuisines);
     if (apiResults.length > 0) {
-      // Merge API results but keep fallback as primary
       const existingNames = new Set(enrichedResults.map(r => r.name.toLowerCase()));
       const newFromAPI = apiResults
         .filter(r => !existingNames.has(r.name.toLowerCase()))
         .slice(0, 3);
       
-      // Add a few API results at the end
       enrichedResults.push(...newFromAPI.map((r, i) => ({
         ...r,
         ...moodContent,

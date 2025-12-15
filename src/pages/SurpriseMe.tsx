@@ -5,8 +5,9 @@ import { Button } from "@/components/ui/button";
 import { useLocation } from "@/contexts/LocationContext";
 import { useToast } from "@/hooks/use-toast";
 import { getRandomSurpriseResponse, getMoodExplanation } from "@/constants/eiCopy";
-import { getUnifiedRestaurants, loadKaggleData, PipelineRestaurant } from "@/services/restaurantPipeline";
+import { getSharedRecommendations, EnrichedRestaurant } from "@/services/sharedRecommendationEngine";
 import RestaurantCardEnhanced from "@/components/RestaurantCardEnhanced";
+import SurpriseMessageCard from "@/components/SurpriseMessageCard";
 import { MoodType } from "@/types/smartdine";
 
 const MOODS: { value: MoodType; emoji: string; label: string }[] = [
@@ -20,18 +21,8 @@ const MOODS: { value: MoodType; emoji: string; label: string }[] = [
   { value: 'sad', emoji: '😢', label: 'Sad' },
 ];
 
-const CUISINES: { value: string; emoji: string }[] = [
-  { value: 'Indian', emoji: '🍛' },
-  { value: 'Chinese', emoji: '🥡' },
-  { value: 'Italian', emoji: '🍝' },
-  { value: 'Mexican', emoji: '🌮' },
-  { value: 'Japanese', emoji: '🍣' },
-  { value: 'Thai', emoji: '🍜' },
-  { value: 'Mediterranean', emoji: '🥙' },
-  { value: 'American', emoji: '🍔' },
-  { value: 'French', emoji: '🥐' },
-  { value: 'Korean', emoji: '🥘' },
-];
+// SURPRISE ME = INDIAN CUISINE ONLY (per requirements)
+const SURPRISE_CUISINE = { value: 'Indian', emoji: '🍛' };
 
 const BUDGETS = ['₹', '₹₹', '₹₹₹'];
 
@@ -40,7 +31,7 @@ const SURPRISE_QUOTES = [
   "The universe just whispered your dinner plans! 💫",
   "Fate has delicious taste! 😍",
   "Your tummy's destiny awaits! 🌟",
-  "The stars aligned for this combo! ✨",
+  "The stars aligned for Indian flavors! ✨",
   "Love at first bite incoming! 💕",
   "This is YOUR moment! 🎉",
   "The food gods have spoken! 👑",
@@ -51,16 +42,12 @@ const SurpriseMe = () => {
   const { location } = useLocation();
   const { toast } = useToast();
   const [isSpinning, setIsSpinning] = useState(false);
-  const [result, setResult] = useState<{ mood: typeof MOODS[0]; cuisine: typeof CUISINES[0]; budget: string } | null>(null);
-  const [restaurants, setRestaurants] = useState<PipelineRestaurant[]>([]);
+  const [result, setResult] = useState<{ mood: typeof MOODS[0]; budget: string } | null>(null);
+  const [restaurants, setRestaurants] = useState<EnrichedRestaurant[]>([]);
   const [eiResponse, setEiResponse] = useState("");
   const [moodExplanation, setMoodExplanation] = useState("");
   const [surpriseQuote, setSurpriseQuote] = useState("");
-  const [reelPositions, setReelPositions] = useState([0, 0, 0]);
-
-  useEffect(() => {
-    loadKaggleData();
-  }, []);
+  const [reelPositions, setReelPositions] = useState([0, 0]);
 
   const spin = useCallback(async () => {
     if (!location) {
@@ -76,7 +63,7 @@ const SurpriseMe = () => {
     setResult(null);
     setRestaurants([]);
 
-    // Animate reels
+    // Animate reels (only mood and budget now)
     const animationDuration = 3000;
     const startTime = Date.now();
     
@@ -84,15 +71,12 @@ const SurpriseMe = () => {
       const elapsed = Date.now() - startTime;
       const progress = Math.min(elapsed / animationDuration, 1);
       
-      // Each reel stops at different times
-      const reel1Stop = progress > 0.5;
-      const reel2Stop = progress > 0.7;
-      const reel3Stop = progress > 0.9;
+      const reel1Stop = progress > 0.6;
+      const reel2Stop = progress > 0.85;
       
       setReelPositions([
         reel1Stop ? 0 : Math.floor(Math.random() * MOODS.length),
-        reel2Stop ? 0 : Math.floor(Math.random() * CUISINES.length),
-        reel3Stop ? 0 : Math.floor(Math.random() * BUDGETS.length),
+        reel2Stop ? 0 : Math.floor(Math.random() * BUDGETS.length),
       ]);
       
       if (progress < 1) {
@@ -102,33 +86,30 @@ const SurpriseMe = () => {
     
     animateReels();
 
-    // Wait for animation
     await new Promise(resolve => setTimeout(resolve, animationDuration));
 
-    // Random selections
+    // Random mood and budget (cuisine is ALWAYS Indian)
     const randomMood = MOODS[Math.floor(Math.random() * MOODS.length)];
-    const randomCuisine = CUISINES[Math.floor(Math.random() * CUISINES.length)];
     const randomBudget = BUDGETS[Math.floor(Math.random() * BUDGETS.length)];
 
-    setResult({ mood: randomMood, cuisine: randomCuisine, budget: randomBudget });
-    
-    // Set surprise quote FIRST (most important visual)
+    setResult({ mood: randomMood, budget: randomBudget });
     setSurpriseQuote(SURPRISE_QUOTES[Math.floor(Math.random() * SURPRISE_QUOTES.length)]);
     
-    // Get EI response
     const tone = ['happy', 'energetic'].includes(randomMood.value) ? 'hype' : 
                  ['sad', 'tired', 'stressed', 'anxious'].includes(randomMood.value) ? 'comforting' : 'playful';
     setEiResponse(getRandomSurpriseResponse(tone as any));
     setMoodExplanation(getMoodExplanation(randomMood.value));
 
-    // Use unified pipeline for restaurants
-    const fetchedRestaurants = await getUnifiedRestaurants({
+    // Use shared engine with INDIAN ONLY flag
+    const fetchedRestaurants = await getSharedRecommendations({
       lat: location.lat,
       lon: location.lon,
       city: location.city,
-      cuisines: [randomCuisine.value],
+      cuisines: ['Indian', 'South Indian', 'North Indian', 'Chettinad'],
       mood: randomMood.value as MoodType,
       maxPriceLevel: randomBudget.length,
+      forceIndianOnly: true, // CRITICAL: Forces Indian-only results
+      limit: 12,
     });
 
     setRestaurants(fetchedRestaurants);
@@ -189,7 +170,7 @@ const SurpriseMe = () => {
                 🍔 FOOD JACKPOT 🍕
               </div>
 
-              {/* Reels Container */}
+              {/* Reels Container - Only Mood and Budget (Cuisine is fixed to Indian) */}
               <div className="bg-gradient-to-b from-gray-900 to-gray-800 rounded-2xl p-4 mt-4">
                 <div className="grid grid-cols-3 gap-4">
                   {/* Mood Reel */}
@@ -207,18 +188,18 @@ const SurpriseMe = () => {
                     </div>
                   </div>
 
-                  {/* Cuisine Reel */}
+                  {/* Cuisine Reel - FIXED TO INDIAN */}
                   <div className="bg-card rounded-xl p-4 text-center border-2 border-accent/30 overflow-hidden">
                     <div className="text-xs text-muted-foreground mb-2 font-medium">CUISINE</div>
                     <motion.div
                       className="text-4xl"
-                      animate={isSpinning ? { y: [0, -20, 0] } : {}}
+                      animate={isSpinning ? { y: [0, -20, 0], rotate: [0, 10, -10, 0] } : {}}
                       transition={{ duration: 0.12, repeat: isSpinning ? Infinity : 0 }}
                     >
-                      {result ? result.cuisine.emoji : (isSpinning ? CUISINES[reelPositions[1]].emoji : '❓')}
+                      🍛
                     </motion.div>
-                    <div className="text-sm mt-1 font-medium">
-                      {result ? result.cuisine.value : '?'}
+                    <div className="text-sm mt-1 font-medium text-primary">
+                      Indian
                     </div>
                   </div>
 
@@ -230,7 +211,7 @@ const SurpriseMe = () => {
                       animate={isSpinning ? { y: [0, -20, 0] } : {}}
                       transition={{ duration: 0.14, repeat: isSpinning ? Infinity : 0 }}
                     >
-                      {result ? result.budget : (isSpinning ? BUDGETS[reelPositions[2]] : '❓')}
+                      {result ? result.budget : (isSpinning ? BUDGETS[reelPositions[1]] : '❓')}
                     </motion.div>
                     <div className="text-sm mt-1 font-medium">
                       {result ? 'Budget' : '?'}
@@ -274,77 +255,20 @@ const SurpriseMe = () => {
               exit={{ opacity: 0, y: -30 }}
               className="space-y-6"
             >
-              {/* FLIRTY QUOTE - FIRST AND MOST PROMINENT */}
-              <motion.div
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ type: "spring", bounce: 0.5, delay: 0.1 }}
-                className="text-center py-6"
-              >
-                <motion.div
-                  animate={{ 
-                    scale: [1, 1.1, 1],
-                    rotate: [0, 5, -5, 0]
-                  }}
-                  transition={{ 
-                    duration: 0.8, 
-                    repeat: 2,
-                    ease: "easeInOut"
-                  }}
-                  className="text-6xl md:text-7xl mb-4"
-                >
-                  🎉
-                </motion.div>
-                <motion.p 
-                  className="text-2xl md:text-3xl font-display font-bold text-primary mb-2"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.3 }}
-                >
-                  {surpriseQuote}
-                </motion.p>
-              </motion.div>
-
-              {/* EI Response Card */}
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.4 }}
-                className="glass-card rounded-2xl p-6 text-center"
-              >
-                <p className="text-lg font-medium text-foreground mb-3">{eiResponse}</p>
-                <div className="flex items-center justify-center gap-4 text-2xl mb-4">
-                  <motion.span
-                    animate={{ scale: [1, 1.2, 1] }}
-                    transition={{ delay: 0.5, duration: 0.5 }}
-                  >
-                    {result.mood.emoji}
-                  </motion.span>
-                  <span className="text-muted-foreground">+</span>
-                  <motion.span
-                    animate={{ scale: [1, 1.2, 1] }}
-                    transition={{ delay: 0.6, duration: 0.5 }}
-                  >
-                    {result.cuisine.emoji}
-                  </motion.span>
-                  <span className="text-muted-foreground">+</span>
-                  <motion.span
-                    animate={{ scale: [1, 1.2, 1] }}
-                    transition={{ delay: 0.7, duration: 0.5 }}
-                  >
-                    {result.budget}
-                  </motion.span>
-                </div>
-                <p className="text-sm text-muted-foreground max-w-lg mx-auto">
-                  {moodExplanation}
-                </p>
-              </motion.div>
+              {/* ENHANCED SURPRISE MESSAGE CARD */}
+              <SurpriseMessageCard
+                quote={surpriseQuote}
+                mood={result.mood}
+                budget={result.budget}
+                eiResponse={eiResponse}
+                moodExplanation={moodExplanation}
+              />
 
               {/* Restaurants */}
               {restaurants.length > 0 && (
                 <div className="space-y-4">
                   <h2 className="text-xl font-semibold text-foreground text-center">
-                    🍽️ Your Surprise Restaurants ({restaurants.length})
+                    🍛 Your Indian Surprise Restaurants ({restaurants.length})
                   </h2>
                   <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {restaurants.map((restaurant, index) => (
