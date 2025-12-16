@@ -1,271 +1,174 @@
-🍽️ SmartDine — AI-Powered Food Discovery & Emotional Food Coach
+SmartDine — AI-Powered Food Discovery & Emotional Food Coach 🍽️
 
-SmartDine is an AI-powered food discovery platform that recommends real restaurants and cuisine-accurate dishes based on user mood, cravings, budget, and location.
+SmartDine is a production-ready food discovery application that combines real-world restaurant data with an AI-powered conversational food coach. The platform helps users discover restaurants based on cuisine preferences, budget, location, and emotional state, delivering personalized and context-aware recommendations in real time.
 
-It combines live restaurant APIs, a curated Kaggle dataset, and an emotional AI food coach chatbot to deliver personalized, context-aware dining recommendations — all in a single, smooth user experience.
+---
 
-🚀 Key Features
+✨ Key Features
+
 🤖 AI Food Coach (ChefMood 🍽️💬)
+- Conversational chatbot-style interface (single-page, no navigation)
+- Supports **text and voice input**
+- Detects **user intent and emotional context**
+- Responds with warm, engaging, food-themed conversation
+- Displays restaurant recommendations directly within the chat flow
 
-Conversational, chatbot-style AI (no page navigation)
+Example queries:
+- “Something cheesy but not too expensive”
+- “Comfort food after a rough day”
 
-Detects user emotion, intent, and cravings
+---
 
-Responds with empathetic, playful, food-themed language
-
-Supports text + voice input
-
-Suggests restaurants inside the chat itself
-
-Examples:
-
-“Something cheesy but not too expensive”
-
-“Comfort food after a rough day”
-
-The AI:
-
-Understands keywords like cheesy, comfort, cheap
-
-Maps them to correct cuisines & dishes
-
-Filters restaurants before showing results
-
-🍴 Real Restaurant Recommendations (No Fake Data)
-
-Restaurants are fetched from multiple real data sources:
-
-Foursquare Places API (primary)
-
-Kaggle Zomato restaurant dataset (secondary, local JSON)
-
-OpenTripMap API (fallback for density)
-
-✔ No fake names
-✔ No random ratings
-✔ No cuisine–dish mismatch
+🍴 Real-Time Restaurant Discovery
+Restaurants are fetched and combined from multiple trusted sources:
+- **Foursquare Places API**
+- **Kaggle Zomato restaurant dataset (local JSON)**
+- **OpenTripMap API**
 
 Each recommendation includes:
+- Restaurant name
+- Cuisine
+- Rating and price range
+- Location details
+- Cuisine-appropriate dish suggestion
+- Nutritional highlights
+- Google Maps directions
 
-Restaurant name
+---
 
-Real rating & price range
+🎲 Surprise Me Mode
+- Interactive “Surprise Me” experience
+- Food-themed animations
+- Uses the same unified data pipeline as other sections
+- Provides curated restaurant suggestions instantly
 
-Location & distance
+---
 
-Cuisine-accurate dish
+📍 Location-Aware Recommendations
+- Browser-based current location detection
+- City-based normalization for consistent results
+- Seamless fallback when precise location is unavailable
 
-Nutrition & mood benefits
+---
 
-Google Maps directions
+🍲 Deterministic Dish Mapping
+- Each restaurant is consistently paired with a cuisine-appropriate dish
+- Dish selection is stable across sessions
+- Ensures logical and repeatable recommendations
 
-🎲 “Surprise Me” Mode
+---
 
-Slot-machine style food reveal
+🧠 System Architecture (Overview)
 
-Food-themed animations
+User Input (Text / Voice)  
+↓  
+Intent & Emotion Detection  
+↓  
+Cuisine, Budget & Mood Filtering  
+↓  
+Restaurant Data Aggregation  
+- Foursquare API  
+- Kaggle Dataset  
+- OpenTripMap API  
+↓  
+Deduplication & Normalization  
+↓  
+Deterministic Dish Assignment  
+↓  
+Restaurant Cards Rendered in UI  
 
-Uses the same real data pipeline
+---
 
-Never breaks cuisine or dish rules
+🍽️ Supported Cuisines
 
-📍 Smart Location Handling
+- Indian  
+- Chinese  
+- Italian  
+- Mexican  
+- Japanese  
+- Thai  
+- Mediterranean  
+- American  
+- French  
+- Korean  
 
-Supports current location detection
+Each cuisine is mapped to authentic and commonly recognized dishes.
 
-Fast browser-based geolocation with fallback
-
-All APIs automatically adapt to user city
-
-🍲 Deterministic Dish Selection
-
-Dishes are not randomly assigned.
-
-Instead:
-
-Each restaurant always maps to the same dish
-
-Dish always belongs to the restaurant’s cuisine
-
-Ensures consistency across sessions
-
-🧠 System Architecture (High Level)
-User Input (Text / Voice)
-        ↓
-Intent & Emotion Detection (AI)
-        ↓
-Cuisine + Budget + Mood Filters
-        ↓
-────────────────────────────────
-│  Data Aggregation Layer       │
-│  • Foursquare API             │
-│  • Kaggle Zomato Dataset      │
-│  • OpenTripMap API            │
-────────────────────────────────
-        ↓
-Deduplication & Normalization
-        ↓
-Deterministic Dish Assignment
-        ↓
-Restaurant Cards Rendered
-        ↓
-Displayed Inline in Chat / UI
-
-🔌 APIs & Data Sources Used
-🌍 External APIs
-
-Foursquare Places API
-→ Live restaurant discovery (name, rating, price, location)
-
-OpenTripMap API
-→ Fallback restaurant density in low-coverage areas
-
-LLM APIs (Groq / DeepSeek)
-→ Emotion detection, intent parsing, conversational responses
-
-📊 Local Dataset
-
-Kaggle Zomato Restaurant Dataset
-
-Converted from CSV → JSON
-
-Used to:
-
-Supplement ratings & price info
-
-Increase restaurant coverage
-
-Cross-validate API results
-
-🍽️ Supported Cuisines (Strict)
-
-SmartDine only recommends cuisines it understands deeply:
-
-Indian
-
-Chinese
-
-Italian
-
-Mexican
-
-Japanese
-
-Thai
-
-Mediterranean
-
-American
-
-French
-
-Korean
-
-Each cuisine maps to authentic, popular dishes only.
+---
 
 🎨 UI & UX Highlights
 
-Food-themed design system
+- Food-themed design system
+- Animated restaurant cards
+- Smooth transitions and micro-interactions
+- Emoji-friendly, approachable tone
+- Clean, modern layout suitable for production use
 
-Animated restaurant cards
+---
 
-3D-style effects & micro-interactions
+🛠️ Technology Stack
 
-Emoji-friendly, warm tone
+- Frontend: React, TypeScript
+- Build Tool: Vite
+- Styling: Tailwind CSS, shadcn/ui
+- Animations: Framer Motion
+- APIs: REST-based integrations
+- AI/NLP: LLM-powered intent and emotion analysis
 
-Clean, professional layout (no clutter)
+---
 
-The AI coach behaves like a real chatbot, not a static recommendation page.
+🧪 Reliability & Consistency
 
-🛠️ Tech Stack
+- Unified data pipeline across all recommendation sections
+- Deterministic logic for dish assignment
+- Normalized cuisine and location handling
+- Scalable architecture for adding new data sources
 
-Frontend: React + TypeScript
+---
 
-Build Tool: Vite
+🚀 Running the Project Locally
 
-Styling: Tailwind CSS + shadcn/ui
-
-Animations: Framer Motion
-
-APIs: REST (Foursquare, OpenTripMap)
-
-AI/NLP: LLM-based intent & emotion analysis
-
-🧪 Deterministic & Reliable by Design
-
-SmartDine avoids common AI pitfalls:
-
-❌ No hallucinated restaurants
-❌ No mismatched cuisines
-❌ No random ratings
-❌ No inconsistent dishes
-
-Everything is data-driven, validated, and reproducible.
-
-🧑‍💻 Running the Project Locally
-Prerequisites
-
-Node.js (v18+ recommended)
-
-npm
+### Prerequisites
+- Node.js (v18 or later)
+- npm
 
 Setup
-# Clone the repository
+
+```bash
 git clone <YOUR_GIT_URL>
-
-# Move into the project directory
 cd <PROJECT_NAME>
-
-# Install dependencies
 npm install
-
-# Start development server
 npm run dev
+```
 
-
-The app will start with hot-reload enabled.
+---
 
 🔐 Environment Variables
 
-Create a .env file with:
+Create a `.env` file in the root directory:
 
+```env
 FSQ_API_KEY=your_foursquare_key
 OPENTRIPMAP_API_KEY=your_opentripmap_key
 GROQ_API_KEY=your_groq_key
 DEEPSEEK_API_KEY=your_deepseek_key
+```
 
-🎯 Project Goals & Evaluation Fit
+---
 
-This project demonstrates:
+🎯 Project Scope
 
-Real-world API integration
+SmartDine demonstrates:
+- Real-world API integration
+- Data merging and normalization
+- AI-assisted conversational UX
+- Emotion-aware recommendation logic
+- Scalable frontend architecture
 
-Data normalization & merging
+This project is suitable for technical evaluations, portfolio reviews, and real-world application use cases.
 
-Deterministic AI logic
+---
 
-Conversational UX design
+👩‍💻 Author
 
-Emotion-aware recommendations
-
-Clean, scalable frontend architecture
-
-Ideal for:
-
-Full-stack developer roles
-
-AI/ML-assisted applications
-
-Product-focused engineering interviews
-
-📌 Future Enhancements
-
-User taste memory
-
-Dietary preferences (vegan, keto)
-
-Restaurant bookmarking
-
-Multi-city exploration
-
-Offline caching
+Designed and built as a full-stack AI-driven application focused on usability, data accuracy, and polished user experience.
